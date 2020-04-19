@@ -1,0 +1,111 @@
+---
+title: "Course_Project"
+author: "LyPu"
+date: "4/18/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+You work for Motor Trend, a magazine about the automobile industry. Looking at a data set of a collection of cars, they are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). 
+
+## Analysis
+### Exploratory Analysis
+
+```{r, message=FALSE, warning=FALSE}
+library(datasets)
+library(tidyverse)
+data(mtcars)
+head(mtcars)
+```
+
+The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models). It includes 32 observations on 11 variables.
+
+```{r}
+mtcars$am<-factor(mtcars$am, labels = c("Automatic", "Manual"))
+mtcars$cyl<-factor(mtcars$cyl)
+mtcars$vs<-factor(mtcars$vs)
+mtcars$gear<-factor(mtcars$gear)
+mtcars$carb<-factor(mtcars$carb)
+
+summary(mtcars)
+```
+
+
+### Regressoion Analysis
+1. Is an automatic or manual transmission better for MPG ?
+```{r}
+mtcars%>%group_by(am)%>%
+    summarize(avg_mpg=mean(mpg))
+```
+
+From above explatory analysis (also see plot in Appendix), we can see the average mpg is lower in the automatic group compared with the manual group, so we can roughly conclude that automatic transmission is better. 
+
+2. Quantify the MPG difference between automatic and manual transmissions.  
+
+We can also use a t-test to see whether there is a significant difference in mpg usage between the two groups under 95% confidence level.
+
+```{r}
+t.test(mtcars$mpg~mtcars$am, conf.level=0.95)
+```
+As can be seen that the p-value of this test is `r t.test(mtcars$mpg~mtcars$am, conf.level=0.95)$p.value`, we reject the null hypothesis and conclude that automatic transmission is better for mpg.
+
+3. Exploring the relationship between a set of variables and miles per gallon (MPG) (outcome).
+We can build a multi-variable linear regression model to select variables that can best explain mpg.
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+model<-lm(mpg~., data=mtcars)
+model_best<-step(model, direction="both")
+```
+
+```{r}
+summary(model_best)
+```
+As the adjusted R^{2} is about 0.84, we can conclude 84% of the variability is explained by this best model. 
+
+(1) For validation, we can do a F-test to compare the best model with a model with am as the only regressor.
+```{r}
+model_base<-lm(mpg~am, data=mtcars)
+anova(model_best, model_base)
+```
+
+As the p-value of this test significant, we reject the null hypothesis and conclude the other variables cyl, hp and wt do explain mpg.
+
+(2) For validation, we can also look at the residuals of the best model. 
+
+```{r}
+par(mfrow = c(2,2))
+plot(model_best)
+```
+From these plots, we can conclude:  
+-Residuals vs Fitted plot verifies the independence condition.   
+-Normal QQ plot verifies that the residuals are normally distributed.  
+-Scale-Location plot verifies the constant variance condition.  
+-Residuals vs Leverage plot indicates there are some leverage points (maybe outliers) in the top right corner.
+
+We can also take a look at these leverage points.
+
+```{r}
+Leverage<-hatvalues(model_best)
+tail(sort(Leverage), 3)
+```
+```{r}
+Influence<-dfbetas(model_best)
+tail(sort(Influence[, 6]), 3)
+```
+
+## Appendix
+```{r, fig.width=4, fig.height=4}
+boxplot(mpg~am, data = mtcars,
+        xlab = "Transmission Type",
+        ylab = "MPG (miles/gallon",
+        main = "Plot 1 - MPG for Different Transmission")
+```
+
+```{r, fig.width=6, fig.height=6}
+pairs(mpg ~ ., data = mtcars, main="Plot 2 - Relationships Between All Variables")
+
+```
